@@ -193,6 +193,52 @@ var handleCodePipeline = function(event, context) {
   return _.merge(slackMessage, baseSlackMessage);
 };
 
+var handleCodeBuild = function (event, context) {
+  var subject = "AWS CodeBuild Notification";
+  var message = JSON.parse(event.Records[0].Sns.Message);
+  var timestamp = (new Date(event.Records[0].Sns.Timestamp)).getTime()/1000;
+  var region = event.Records[0].EventSubscriptionArn.split(":")[3]; 
+  var status = message["detail"]['completed-phase-status'];
+  var color = "warning";  
+  var text = "";
+
+  switch (status) {
+    case 'SUCCEEDED':
+      color = "good";
+      text = "Status for "+message.detail['project-name']+" build project is "+status+".";
+      break;
+    case 'FAILED':
+      color = "danger";
+      text = message.detail['completed-phase-context'];
+      break; 
+    default:
+        text = "Status for "+message.detail['project-name']+" build project is "+status+".";
+      break;
+  }
+ 
+  var slackMessage = {
+    text: "*" + subject + "*",
+    attachments: [
+      {
+        "color": color,
+        "fields": [
+          { "title": "Message", "value": message.detail["project-name"]+" - Code-Build Status", "short": false },
+          { "title": "Description", "value": text, "short": false },
+          { "title": "Event", "value": message.detail["completed-phase"], "short": true },
+          { "title": "Status", "value": message.detail["completed-phase-status"], "short": true },
+          { "title": "Duration", "value": message.detail["completed-phase-duration-seconds"]+" second(s)", "short": false },
+          { "title": "Region", "value": region, "short": false }
+
+        ],
+        "ts": timestamp
+      }
+    ]
+  };
+
+  console.log(slackMessage);
+  return _.merge(slackMessage, baseSlackMessage); 
+}
+
 var handleElasticache = function(event, context) {
   var subject = "AWS ElastiCache Notification"
   var message = JSON.parse(event.Records[0].Sns.Message);
@@ -391,7 +437,19 @@ var processEvent = function(event, context) {
     console.log("processing autoscaling notification");
     slackMessage = handleAutoScaling(event, context);
   }
-  else{
+  else if(eventSubscriptionArn.indexOf(config.services.codebuild.match_text) > -1 || eventSnsSubject.indexOf(config.services.codebuild.match_text) > -1 || eventSnsMessageRaw.indexOf(config.services.codebuild.match_text) > -1){
+    console.log("processing codebuild notification");
+    slackMessage = handleCodeBuild(event, context);
+  }
+  else{  
+    // console.log("is sns eventSubscriptionArn, ", eventSubscriptionArn);
+    // console.log("is sns eventSnsSubject, ", eventSnsSubject);
+    // console.log("is sns eventSnsMessageRaw, ", eventSnsMessageRaw);
+    // console.log("is sns eventSnsMessage, ", eventSnsMessage);
+
+    // console.log("processing sns event", event);
+    // console.log("processing sns event record", event.Records[0].Sns);
+    // console.log("processing sns context", context);
     slackMessage = handleCatchAll(event, context);
   }
 

@@ -11,3 +11,6 @@ $NODE_LAMBDA run -x test/context.json -j test/sns-codedeploy-event.json
 $NODE_LAMBDA run -x test/context.json -j test/sns-codedeploy-configuration.json
 $NODE_LAMBDA run -x test/context.json -j test/sns-elasticache-event.json
 $NODE_LAMBDA run -x test/context.json -j test/sns-autoscaling-event.json
+
+
+$NODE_LAMBDA run -x test/context.json -j test/sns-codebuild-event.json
