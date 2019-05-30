@@ -143,9 +143,15 @@ var handleCodePipeline = function(event, context) {
   var color = "warning";
   var changeType = "";
 
+  console.log("handleCodePipeline 1");
   try {
+    console.log("handleCodePipeline 2");
     message = JSON.parse(event.Records[0].Sns.Message);
-    detailType = message['detail-type'];
+    detailType = message['detail-type']; 
+
+    if (snsSubject == null) {
+      snsSubject = detailType;
+    } 
 
     if(detailType === "CodePipeline Pipeline Execution State Change"){
       changeType = "";
@@ -160,9 +166,11 @@ var handleCodePipeline = function(event, context) {
     } else if(message.detail.state === "FAILED"){
       color = "danger";
     }
+
     header = message.detail.state + ": CodePipeline " + changeType;
     fields.push({ "title": "Message", "value": header, "short": false });
-    fields.push({ "title": "Pipeline", "value": message.detail.pipeline, "short": true });
+    fields.push({ "title": "Pipeline", "value": message.detail.pipeline, "short": false });
+    fields.push({ "title": "Stage", "value": message.detail.type.category, "short": true });
     fields.push({ "title": "Region", "value": message.region, "short": true });
     fields.push({
       "title": "Status Link",
@@ -171,6 +179,7 @@ var handleCodePipeline = function(event, context) {
     });
   }
   catch(e) {
+    console.log("handleCodePipeline 3");
     color = "good";
     message = event.Records[0].Sns.Message;
     header = message.detail.state + ": CodePipeline " + message.detail.pipeline;
@@ -189,6 +198,7 @@ var handleCodePipeline = function(event, context) {
       }
     ]
   };
+  console.log("handleCodePipeline 4");
 
   return _.merge(slackMessage, baseSlackMessage);
 };
@@ -203,8 +213,7 @@ var handleCodeBuild = function (event, context) {
   var text = "";
 
   switch (status) {
-    case 'SUCCEEDED':
-      color = "good";
+    case 'SUCCEEDED': 
       text = "Status for "+message.detail['project-name']+" build project is "+status+".";
       break;
     case 'FAILED':
@@ -216,6 +225,11 @@ var handleCodeBuild = function (event, context) {
       break;
   }
  
+  if (typeof(message.detail["project-name"]) === "undefined") {
+    console.log("event", event);
+    console.log("message", message);
+  }
+
   var slackMessage = {
     text: "*" + subject + "*",
     attachments: [
@@ -441,17 +455,11 @@ var processEvent = function(event, context) {
     console.log("processing codebuild notification");
     slackMessage = handleCodeBuild(event, context);
   }
-  else{  
-    // console.log("is sns eventSubscriptionArn, ", eventSubscriptionArn);
-    // console.log("is sns eventSnsSubject, ", eventSnsSubject);
-    // console.log("is sns eventSnsMessageRaw, ", eventSnsMessageRaw);
-    // console.log("is sns eventSnsMessage, ", eventSnsMessage);
-
-    // console.log("processing sns event", event);
-    // console.log("processing sns event record", event.Records[0].Sns);
-    // console.log("processing sns context", context);
+  else{   
     slackMessage = handleCatchAll(event, context);
   }
+
+  console.log("slackMessage", slackMessage);
 
   postMessage(slackMessage, function(response) {
     if (response.statusCode < 400) {
